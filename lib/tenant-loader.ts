@@ -20,6 +20,22 @@ let cachedTenantConfig: TenantConfig | null = null;
 let cachedTenantSlug: string | null = null;
 
 /**
+ * Check if running on localhost or in demo mode
+ */
+function isLocalhost(hostname: string): boolean {
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname === '0.0.0.0' ||
+    hostname.endsWith('.local') ||
+    hostname.startsWith('192.168.') ||
+    hostname.startsWith('10.') ||
+    hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./)
+  );
+}
+
+/**
  * Detect which tenant based on URL
  */
 export function detectTenant(): TenantDetectionResult {
@@ -31,6 +47,13 @@ export function detectTenant(): TenantDetectionResult {
   const url = new URL(window.location.href);
   const hostname = url.hostname;
   const params = url.searchParams;
+
+  // 0. Check for demo mode (always use default in demo)
+  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+  if (isDemoMode) {
+    console.log('[TenantLoader] DEMO MODE - Using default tenant');
+    return { method: 'default', identifier: 'centriweb' };
+  }
 
   // 1. Check query param (dev mode)
   if (params.has('tenant')) {
@@ -52,14 +75,20 @@ export function detectTenant(): TenantDetectionResult {
     }
   }
 
-  // 3. Custom domain (need to look up in database)
-  if (hostname !== 'localhost' && !isProductionDomain) {
+  // 3. Check if localhost/dev environment
+  if (isLocalhost(hostname)) {
+    console.log('[TenantLoader] Localhost detected - Using default tenant');
+    return { method: 'default', identifier: 'centriweb' };
+  }
+
+  // 4. Custom domain (need to look up in database)
+  if (!isProductionDomain) {
     console.log('[TenantLoader] Detected custom domain:', hostname);
     return { method: 'domain', identifier: hostname };
   }
 
-  // 4. Fallback to default (localhost dev)
-  console.log('[TenantLoader] Using default tenant');
+  // 5. Final fallback to default
+  console.log('[TenantLoader] Using default tenant (fallback)');
   return { method: 'default', identifier: 'centriweb' };
 }
 
@@ -67,6 +96,15 @@ export function detectTenant(): TenantDetectionResult {
  * Load tenant config from API
  */
 export async function loadTenantConfig(): Promise<TenantConfig> {
+  // DEMO MODE: Always use default config immediately
+  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+  if (isDemoMode) {
+    console.log('[TenantLoader] DEMO MODE - Returning default config (no API calls)');
+    cachedTenantConfig = DEFAULT_TENANT_CONFIG;
+    cachedTenantSlug = 'default:centriweb';
+    return DEFAULT_TENANT_CONFIG;
+  }
+
   // Check cache
   const detection = detectTenant();
   const cacheKey = `${detection.method}:${detection.identifier}`;
@@ -81,9 +119,11 @@ export async function loadTenantConfig(): Promise<TenantConfig> {
 
     if (detection.method === 'default') {
       // Use default config for localhost
+      console.log('[TenantLoader] Using DEFAULT_TENANT_CONFIG for local development');
       config = DEFAULT_TENANT_CONFIG;
     } else if (detection.method === 'domain') {
       // Lookup by domain
+      console.log('[TenantLoader] Fetching tenant config by domain:', detection.identifier);
       const response = await fetch(`/api/tenants/by-domain?domain=${detection.identifier}`);
       if (!response.ok) {
         throw new Error(`Failed to load tenant by domain: ${response.statusText}`);
@@ -91,6 +131,7 @@ export async function loadTenantConfig(): Promise<TenantConfig> {
       config = await response.json();
     } else {
       // Lookup by slug (query or subdomain)
+      console.log('[TenantLoader] Fetching tenant config by slug:', detection.identifier);
       const response = await fetch(`/api/tenants/${detection.identifier}/config`);
       if (!response.ok) {
         throw new Error(`Failed to load tenant config: ${response.statusText}`);

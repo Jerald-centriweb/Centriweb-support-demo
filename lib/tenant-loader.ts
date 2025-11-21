@@ -94,16 +94,32 @@ export function detectTenant(): TenantDetectionResult {
 
 /**
  * Load tenant config from API
+ *
+ * ✨ DEMO MODE: This demo ALWAYS uses DEFAULT_TENANT_CONFIG (no backend needed)
+ *
+ * The app is configured as a self-contained demo with:
+ * - No Supabase dependency
+ * - No API calls
+ * - Instant loading
+ * - Works on any static host (Vercel, Netlify, etc.)
+ *
+ * To enable multi-tenant production mode:
+ * 1. Set up Supabase
+ * 2. Uncomment the production code below
+ * 3. Set VITE_PRODUCTION_MODE=true
  */
 export async function loadTenantConfig(): Promise<TenantConfig> {
-  // DEMO MODE: Always use default config immediately
-  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
-  if (isDemoMode) {
-    console.log('[TenantLoader] DEMO MODE - Returning default config (no API calls)');
-    cachedTenantConfig = DEFAULT_TENANT_CONFIG;
-    cachedTenantSlug = 'default:centriweb';
-    return DEFAULT_TENANT_CONFIG;
-  }
+  // 🎯 DEMO MODE: ALWAYS return default config immediately
+  console.log('[TenantLoader] 🎯 DEMO MODE - Using DEFAULT_TENANT_CONFIG (no backend)');
+  cachedTenantConfig = DEFAULT_TENANT_CONFIG;
+  cachedTenantSlug = 'default:centriweb';
+  return DEFAULT_TENANT_CONFIG;
+
+  /*
+  // ===========================================
+  // PRODUCTION MODE CODE (disabled for demo)
+  // ===========================================
+  // Uncomment this section if you want to enable real multi-tenant API mode
 
   // Check cache
   const detection = detectTenant();
@@ -150,6 +166,7 @@ export async function loadTenantConfig(): Promise<TenantConfig> {
     console.log('[TenantLoader] Falling back to default config');
     return DEFAULT_TENANT_CONFIG;
   }
+  */
 }
 
 /**

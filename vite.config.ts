@@ -18,6 +18,15 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      build: {
+        // Exclude API routes from Vite build - they're handled by Vercel
+        rollupOptions: {
+          external: (id) => {
+            // Don't bundle API routes
+            return id.startsWith('./api/') || id.startsWith('../api/');
+          }
+        }
       }
     };
 });

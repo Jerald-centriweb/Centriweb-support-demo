@@ -6,8 +6,8 @@
  * Tests the /api/auth/session endpoint and decodes the JWT token
  */
 
-const http = require('http');
-const jwt = require('jsonwebtoken');
+import http from 'http';
+import jwt from 'jsonwebtoken';
 
 const PORT = process.env.PORT || 3000;
 const SESSION_KEY = process.env.SESSION_KEY || 'test';
